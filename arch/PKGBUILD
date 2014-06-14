@@ -1,25 +1,25 @@
 # Maintainer: xylosper <darklin20@gmail.com>
 
 pkgname=('okular-backend-mupdf')
-pkgver=0.0.2
-pkgrel=1
+pkgver=0.0.1
+pkgrel=5
 pkgdesc="MuPDF-based backend for Okular"
 arch=('i686' 'x86_64')
 license=('GPL')
 depends=('kdegraphics-okular' 'openjpeg2' 'mupdf')
-makedepends=('gcc' 'git' 'automoc4' 'cmake')
-source=('git+https://github.com/xylosper/okular-backend-mupdf.git')
-md5sums=('SKIP')
+makedepends=('gcc' 'automoc4' 'cmake')
 url='https://github.com/xylosper/okular-backend-mupdf'
-options=(debug !strip)
+source=("$url/archive/v$pkgver.tar.gz")
+md5sums=('SKIP')
 
 build() {
-    cd $srcdir/$pkgname
+    cd $srcdir/$pkgname-$pkgver
+    rm -rf build
     mkdir build && cd build
-    cmake -DCMAKE_INSTALL_PREFIX:PATH=$pkgdir/usr .. && make VERBOSE=1
+    cmake -DCMAKE_INSTALL_PREFIX:PATH=$pkgdir/usr .. && make -j$(nproc)
 }
 
 package() {
-    cd $srcdir/$pkgname/build
+    cd $srcdir/$pkgname-$pkgver/build
     make install
 }
