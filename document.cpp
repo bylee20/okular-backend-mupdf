@@ -29,15 +29,16 @@ struct Document::Data {
     fz_stream *stream;
     int pageCount;
     pdf_obj *info;
-    int pageMode;
-    bool locked : 1;
+    PageMode pageMode;
+    bool locked;
 
-    pdf_obj *trailer() const
-    { return pdf_trailer(reinterpret_cast<pdf_document*>(mdoc)); }
-
+    pdf_document *pdf() const { return reinterpret_cast<pdf_document*>(mdoc); }
+    pdf_obj *dict(const char *key) const
+        { return pdf_dict_gets(pdf_trailer(pdf()), key); }
+    void loadInfoDict() { if (!info) info = dict("Info"); }
     bool load()
     {
-        pdf_obj *root = pdf_dict_gets(trailer(), "Root");
+        pdf_obj *root = dict("Root");
         if (!root)
             return false;
 
@@ -60,10 +61,6 @@ struct Document::Data {
         }
         return true;
     }
-
-    void loadInfoDict()
-    { if (!info) info = pdf_dict_gets(trailer(), "Info"); }
-
     void convertOutline(fz_outline *out, Outline *item)
     {
         for (; out; out = out->next) {
@@ -193,7 +190,7 @@ QString Document::infoKey(const QByteArray &key) const
     pdf_obj *obj = pdf_dict_gets(d->info, key.constData());
     if (obj) {
         obj = pdf_resolve_indirect(obj);
-        char *value = pdf_to_utf8(reinterpret_cast<pdf_document*>(d->mdoc), obj);
+        char *value = pdf_to_utf8(d->pdf(), obj);
         if (value) {
             const QString res = QString::fromUtf8(value);
             fz_free(d->ctx, value);
@@ -219,8 +216,10 @@ Outline* Document::outline() const
 
 float Document::pdfVersion() const
 {
+    if (!d->mdoc)
+        return 0.0f;
     char buf[64];
-    if (d->mdoc && fz_meta(d->mdoc, FZ_META_FORMAT_INFO, buf, sizeof(buf)) == FZ_META_OK) {
+    if (fz_meta(d->mdoc, FZ_META_FORMAT_INFO, buf, sizeof(buf)) == FZ_META_OK) {
         int major, minor;
         if (sscanf(buf, "PDF %d.%d", &major, &minor) == 2)
             return float(major + minor / 10.0);
@@ -230,7 +229,7 @@ float Document::pdfVersion() const
 
 Document::PageMode Document::pageMode() const
 {
-    return static_cast<Document::PageMode>(d->pageMode);
+    return d->pageMode;
 }
 
 }

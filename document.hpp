@@ -35,10 +35,10 @@ public:
     bool isLocked() const;
     bool unlock(const QByteArray &password);
     int pageCount() const;
-    Page* page(int page) const;
+    Page *page(int page) const;
     QList<QByteArray> infoKeys() const;
     QString infoKey(const QByteArray &key) const;
-    Outline* outline() const;
+    Outline *outline() const;
     float pdfVersion() const;
     PageMode pageMode() const;
 private:
@@ -53,13 +53,13 @@ public:
     ~Outline() { qDeleteAll(m_children); }
     QString title() const { return m_title; }
     bool isOpen() const { return m_open; }
-    QVector<Outline *> children() const { return m_children; }
+    QVector<Outline*> children() const { return m_children; }
     void setTitle(const QString &title) { m_title = title; }
     void appendChild(Outline *child) { m_children.push_back(child); }
 private:
     Q_DISABLE_COPY(Outline)
     QString m_title;
-    QVector<Outline *> m_children;
+    QVector<Outline*> m_children;
     bool m_open : 1;
 };
 
