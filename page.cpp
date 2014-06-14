@@ -138,11 +138,9 @@ QVector<TextBox *> Page::textBoxes() const
             for (fz_text_span *s = line.first_span; s; s = s->next) {
                 fz_text_span &span = *s;
                 for (int i_char = 0; i_char < span.len; ++i_char) {
-                    fz_rect bbox;
-                    fz_text_char_bbox(&bbox, s, i_char);
-                    fz_text_char &tc = span.text[i_char];
-
-                    TextBox *box = new TextBox(tc.c, convert_fz_rect(bbox).toRect());
+                    fz_rect bbox; fz_text_char_bbox(&bbox, s, i_char);
+                    const int text = span.text[i_char].c;
+                    TextBox *box = new TextBox(text, convert_fz_rect(bbox));
                     boxes.append(box);
                     hasText = true;
                 }

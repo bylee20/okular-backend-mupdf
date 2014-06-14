@@ -38,15 +38,15 @@ private:
 
 class TextBox {
 public:
-    TextBox(QChar c, const QRect &bbox)
+    TextBox(QChar c, const QRectF &bbox)
         : m_text(c), m_rect(bbox), m_end(false) { }
-    QRect rect() const { return m_rect; }
+    QRectF rect() const { return m_rect; }
     QChar text() const { return m_text; }
     bool isAtEndOfLine() const { return m_end; }
     void markAtEndOfLine() { m_end = true; }
 private:
     QChar m_text;
-    QRect m_rect;
+    QRectF m_rect;
     bool m_end : 1;
 };
 
