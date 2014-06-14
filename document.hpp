@@ -7,26 +7,16 @@
  *   (at your option) any later version.                                   *
  ***************************************************************************/
 
-#ifndef QMUPDF_H
-#define QMUPDF_H
+#ifndef QMUPDF_DOCUMENT_HPP
+#define QMUPDF_DOCUMENT_HPP
 
-#include <QtCore/QList>
-#include <QtCore/QRectF>
-#include <QtCore/QSizeF>
 #include <QtCore/QString>
-
-class QImage;
-class QStringList;
+#include <QtCore/QVector>
+#include <QtAlgorithms>
 
 namespace QMuPDF {
 
-class DocumentPrivate;
-class Page;
-class PagePrivate;
-class TextBox;
-class TextBoxPrivate;
-class Outline;
-class OutlinePrivate;
+class Page;                             class Outline;
 
 class Document {
 public:
@@ -53,49 +43,24 @@ public:
     PageMode pageMode() const;
 private:
     Q_DISABLE_COPY(Document)
-    DocumentPrivate* d;
-};
-
-class Page {
-    friend class Document;
-public:
-    ~Page();
-    int number() const;
-    QSizeF size() const;
-    qreal duration() const;
-    QImage render(qreal width, qreal height) const;
-    QList<TextBox *> textBoxes() const;
-private:
-    Page();
-    Q_DISABLE_COPY(Page)
-    PagePrivate* d;
-};
-
-class TextBox {
-    friend class Page;
-public:
-    ~TextBox();
-    QRect rect() const;
-    QChar text() const;
-    bool isAtEndOfLine() const;
-private:
-    TextBox();
-    Q_DISABLE_COPY(TextBox)
-    TextBoxPrivate* d;
+    struct Data;
+    Data *d;
 };
 
 class Outline {
-    friend class Document;
-    friend class DocumentPrivate;
 public:
-    ~Outline();
-    QString title() const;
-    bool isOpen() const;
-    QList<Outline *> children() const;
+    Outline(): m_open(false) { }
+    ~Outline() { qDeleteAll(m_children); }
+    QString title() const { return m_title; }
+    bool isOpen() const { return m_open; }
+    QVector<Outline *> children() const { return m_children; }
+    void setTitle(const QString &title) { m_title = title; }
+    void appendChild(Outline *child) { m_children.push_back(child); }
 private:
-    Outline();
     Q_DISABLE_COPY(Outline)
-    OutlinePrivate* d;
+    QString m_title;
+    QVector<Outline *> m_children;
+    bool m_open : 1;
 };
 
 }

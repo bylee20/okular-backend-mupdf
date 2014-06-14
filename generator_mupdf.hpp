@@ -13,7 +13,7 @@
 #include <okular/core/document.h>
 #include <okular/core/generator.h>
 
-#include "qmupdf.h"
+#include "document.hpp"
 
 class MuPDFGenerator : public Okular::Generator {
     Q_OBJECT

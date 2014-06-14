@@ -7,8 +7,8 @@
  *   (at your option) any later version.                                   *
  ***************************************************************************/
 
-#include "generator_mupdf.h"
-
+#include "generator_mupdf.hpp"
+#include "page.hpp"
 #include <qimage.h>
 #include <qmutex.h>
 
@@ -24,7 +24,7 @@
 
 static const int MuPDFDebug = 4716;
 
-static Okular::TextPage *buildTextPage(const QList<QMuPDF::TextBox*> &boxes,
+static Okular::TextPage *buildTextPage(const QVector<QMuPDF::TextBox*> &boxes,
                                        qreal width, qreal height)
 {
     Okular::TextPage *ktp = new Okular::TextPage();
@@ -253,7 +253,7 @@ Okular::TextPage* MuPDFGenerator::textPage(Okular::Page *page)
 {
     userMutex()->lock();
     QMuPDF::Page *mp = m_pdfdoc.page(page->number());
-    QList<QMuPDF::TextBox *> boxes = mp->textBoxes();
+    const QVector<QMuPDF::TextBox *> boxes = mp->textBoxes();
     const QSizeF s = mp->size();
     userMutex()->unlock();
     delete mp;

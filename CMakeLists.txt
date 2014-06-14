@@ -21,7 +21,8 @@ include_directories(
 )
 
 set(okularGenerator_mupdf_SRCS
-  qmupdf.cpp
+  document.cpp
+  page.cpp
   generator_mupdf.cpp
 )
 
