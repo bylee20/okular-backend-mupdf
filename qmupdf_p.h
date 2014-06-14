@@ -35,12 +35,14 @@ class DocumentPrivate
         void convertOutline(fz_outline *out, Outline *item);
 
         fz_context *ctxt;
-        pdf_document *xref;
+        fz_document *mdoc;
         fz_stream *stream;
         int pageCount;
         pdf_obj *info;
         /*Document::PageMode*/ int pageMode;
         bool locked : 1;
+private:
+       pdf_obj *trailer() const { return pdf_trailer(reinterpret_cast<pdf_document*>(mdoc)); }
 };
 
 class PagePrivate
@@ -50,7 +52,7 @@ class PagePrivate
 
         int pageNum;
         DocumentPrivate *doc;
-        pdf_page *page;
+        fz_page *page;
 };
 
 class TextBoxPrivate

@@ -48,13 +48,14 @@ using namespace QMuPDF;
 
 DocumentPrivate::DocumentPrivate()
     : ctxt(fz_new_context(NULL, NULL, FZ_STORE_DEFAULT))
-    , xref(0)
+    , mdoc(0)
     , stream(0)
     , pageCount(0)
     , info(0)
     , pageMode(Document::UseNone)
     , locked(false)
 {
+    fz_register_document_handler(ctxt, &pdf_document_handler);
 }
 
 bool DocumentPrivate::load()
@@ -62,12 +63,13 @@ bool DocumentPrivate::load()
     pdf_obj *obj = 0;
     pdf_obj *root;
 
-    root = pdf_dict_gets(pdf_trailer(xref), "Root");
+
+    root = pdf_dict_gets(trailer(), "Root");
     if (!root) {
         return false;
     }
 
-    pageCount = pdf_count_pages(xref);
+    pageCount = fz_count_pages(mdoc);
 
     obj = pdf_dict_gets(root, "PageMode");
     if (obj && pdf_is_name(obj)) {
@@ -96,7 +98,7 @@ void DocumentPrivate::loadInfoDict()
         return;
     }
 
-    info = pdf_dict_gets(pdf_trailer(xref), "Info");
+    info = pdf_dict_gets(trailer(), "Info");
 }
 
 void DocumentPrivate::convertOutline(fz_outline *out, Outline *item)
@@ -152,15 +154,15 @@ bool Document::load(const QString &fileName)
         return false;
     }
     char *oldlocale = std::setlocale(LC_NUMERIC, "C");
-    d->xref = pdf_open_document_with_stream(d->ctxt, d->stream);
+    d->mdoc = fz_open_document_with_stream(d->ctxt, "pdf", d->stream);
     if (oldlocale) {
         std::setlocale(LC_NUMERIC, oldlocale);
     }
-    if (!d->xref) {
+    if (!d->mdoc) {
         return false;
     }
 
-    d->locked = pdf_needs_password(d->xref);
+    d->locked = fz_needs_password(d->mdoc);
 
     if (!d->locked) {
         if (!d->load()) {
@@ -173,12 +175,12 @@ bool Document::load(const QString &fileName)
 
 void Document::close()
 {
-    if (!d->xref) {
+    if (!d->mdoc) {
         return;
     }
 
-    pdf_close_document(d->xref);
-    d->xref = 0;
+    fz_close_document(d->mdoc);
+    d->mdoc = 0;
     fz_close(d->stream);
     d->stream = 0;
     d->pageCount = 0;
@@ -199,7 +201,7 @@ bool Document::unlock(const QByteArray &password)
     }
 
     QByteArray a = password;
-    if (!pdf_authenticate_password(d->xref, a.data())) {
+    if (!fz_authenticate_password(d->mdoc, a.data())) {
         return false;
     }
 
@@ -218,11 +220,11 @@ int Document::pageCount() const
 
 Page* Document::page(int pageno) const
 {
-    if (!d->xref || pageno < 0 || pageno >= d->pageCount) {
+    if (!d->mdoc || pageno < 0 || pageno >= d->pageCount) {
         return 0;
     }
 
-    pdf_page *page = pdf_load_page(d->xref, pageno);
+    fz_page *page = fz_load_page(d->mdoc, pageno);
     if (!page) {
         return 0;
     }
@@ -237,7 +239,7 @@ Page* Document::page(int pageno) const
 QList<QByteArray> Document::infoKeys() const
 {
     QList<QByteArray> keys;
-    if (!d->xref) {
+    if (!d->mdoc) {
         return keys;
     }
 
@@ -259,7 +261,7 @@ QList<QByteArray> Document::infoKeys() const
 
 QString Document::infoKey(const QByteArray &key) const
 {
-    if (!d->xref) {
+    if (!d->mdoc) {
         return QString();
     }
 
@@ -272,7 +274,7 @@ QString Document::infoKey(const QByteArray &key) const
     pdf_obj *obj = pdf_dict_gets(d->info, key.constData());
     if (obj) {
         obj = pdf_resolve_indirect(obj);
-        char *value = pdf_to_utf8(d->xref, obj);
+        char *value = pdf_to_utf8(reinterpret_cast<pdf_document*>(d->mdoc), obj);
         if (value) {
             const QString res = QString::fromUtf8(value);
             fz_free(d->ctxt, value);
@@ -284,7 +286,7 @@ QString Document::infoKey(const QByteArray &key) const
 
 Outline* Document::outline() const
 {
-    fz_outline *out = pdf_load_outline(d->xref);
+    fz_outline *out = fz_load_outline(d->mdoc);
     if (!out) {
         return 0;
     }
@@ -300,7 +302,7 @@ Outline* Document::outline() const
 float Document::pdfVersion() const
 {
     char buf[64];
-    if (d->xref && pdf_meta(d->xref, FZ_META_FORMAT_INFO, buf, sizeof(buf)) == FZ_META_OK) {
+    if (d->mdoc && fz_meta(d->mdoc, FZ_META_FORMAT_INFO, buf, sizeof(buf)) == FZ_META_OK) {
         int major, minor;
         if (sscanf(buf, "PDF %d.%d", &major, &minor) == 2) {
             return float(major + minor / 10.0);
@@ -322,7 +324,7 @@ Page::Page()
 
 Page::~Page()
 {
-    pdf_free_page(d->doc->xref, d->page);
+    fz_free_page(d->doc->mdoc, d->page);
 
     delete d;
 }
@@ -335,13 +337,13 @@ int Page::number() const
 QSizeF Page::size() const
 {
     fz_rect rect;
-    return convert_fz_rect(*pdf_bound_page(d->doc->xref, d->page, &rect)).size();
+    return convert_fz_rect(*fz_bound_page(d->doc->mdoc, d->page, &rect)).size();
 }
 
 qreal Page::duration() const
 {
     float val;
-    (void)pdf_page_presentation(d->doc->xref, d->page, &val);
+    (void)fz_page_presentation(d->doc->mdoc, d->page, &val);
     return val < 0.1 ? -1 : val;
 }
 
@@ -357,7 +359,7 @@ QImage Page::render(qreal width, qreal height) const
     fz_pixmap *image = fz_new_pixmap(d->doc->ctxt, csp, width, height);
     fz_clear_pixmap_with_value(d->doc->ctxt, image, 0xff);
     fz_device *device = fz_new_draw_device(d->doc->ctxt, image);
-    pdf_run_page(d->doc->xref, d->page, device, &ctm, &cookie);
+    fz_run_page(d->doc->mdoc, d->page, device, &ctm, &cookie);
     fz_free_device(device);
 
     QImage img;
@@ -377,7 +379,7 @@ QList<TextBox *> Page::textBoxes() const
     fz_text_page *page = fz_new_text_page(d->doc->ctxt);
     fz_text_sheet *sheet = fz_new_text_sheet(d->doc->ctxt);
     fz_device *device = fz_new_text_device(d->doc->ctxt, sheet, page);
-    pdf_run_page(d->doc->xref, d->page, device, &ctm, &cookie);
+    fz_run_page(d->doc->mdoc, d->page, device, &ctm, &cookie);
     fz_free_device(device);
     if (cookie.errors) {
         fz_free_text_page(d->doc->ctxt, page);
