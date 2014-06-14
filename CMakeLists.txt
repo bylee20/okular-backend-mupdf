@@ -29,9 +29,9 @@ kde4_add_plugin(okularGenerator_mupdf ${okularGenerator_mupdf_SRCS})
 
 target_link_libraries(okularGenerator_mupdf
 	${OKULAR_LIBRARIES} ${KDE4_KDEUI_LIBS} ${QT_QTXML_LIBRARY}
+	mupdf mujs
 	${ZLIB_LIBRARIES} ${FREETYPE_LIBRARIES} ${JBIG2DEC_LIBRARIES}
 	${JPEG_LIBRARIES} ${OPENJPEG2_LIBRARIES} ${OPENSSL_LIBRARIES}
-	mupdf mujs
 )
 
 install(TARGETS okularGenerator_mupdf DESTINATION ${PLUGIN_INSTALL_DIR})
