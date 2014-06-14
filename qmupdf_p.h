@@ -15,9 +15,9 @@
 
 extern "C"
 {
-#include <fitz.h>
-#include <mupdf.h>
-#include <mupdf-internal.h>
+#include <mupdf/fitz.h>
+#include <mupdf/pdf.h>
+#include <mupdf/pdf/xref.h>
 }
 
 namespace QMuPDF

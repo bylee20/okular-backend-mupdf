@@ -62,7 +62,7 @@ bool DocumentPrivate::load()
     pdf_obj *obj = 0;
     pdf_obj *root;
 
-    root = pdf_dict_gets(xref->trailer, "Root");
+    root = pdf_dict_gets(pdf_trailer(xref), "Root");
     if (!root) {
         return false;
     }
@@ -96,7 +96,7 @@ void DocumentPrivate::loadInfoDict()
         return;
     }
 
-    info = pdf_dict_gets(xref->trailer, "Info");
+    info = pdf_dict_gets(pdf_trailer(xref), "Info");
 }
 
 void DocumentPrivate::convertOutline(fz_outline *out, Outline *item)
@@ -334,7 +334,8 @@ int Page::number() const
 
 QSizeF Page::size() const
 {
-    return convert_fz_rect(pdf_bound_page(d->doc->xref, d->page)).size();
+    fz_rect rect;
+    return convert_fz_rect(*pdf_bound_page(d->doc->xref, d->page, &rect)).size();
 }
 
 qreal Page::duration() const
@@ -348,15 +349,15 @@ QImage Page::render(qreal width, qreal height) const
 {
     const QSizeF s = size();
 
-    fz_matrix ctm;
-    ctm = fz_identity;
-    ctm = fz_concat(ctm, fz_scale(width / s.width(), height / s.height()));
+    fz_matrix ctm, tmp;
+    fz_concat(&ctm, &fz_identity, fz_scale(&tmp, width / s.width(), height / s.height()));
 
-    fz_cookie cookie = { 0, 0, 0, 0 };
-    fz_pixmap *image = fz_new_pixmap(d->doc->ctxt, fz_device_rgb, width, height);
+    fz_cookie cookie = { 0, 0, 0, 0, 0, 0 };
+    fz_colorspace *csp = fz_device_rgb(d->doc->ctxt);
+    fz_pixmap *image = fz_new_pixmap(d->doc->ctxt, csp, width, height);
     fz_clear_pixmap_with_value(d->doc->ctxt, image, 0xff);
     fz_device *device = fz_new_draw_device(d->doc->ctxt, image);
-    pdf_run_page(d->doc->xref, d->page, device, ctm, &cookie);
+    pdf_run_page(d->doc->xref, d->page, device, &ctm, &cookie);
     fz_free_device(device);
 
     QImage img;
@@ -371,13 +372,12 @@ QImage Page::render(qreal width, qreal height) const
 
 QList<TextBox *> Page::textBoxes() const
 {
-    fz_matrix ctm;
-    ctm = fz_identity;
-    fz_cookie cookie = { 0, 0, 0, 0 };
-    fz_text_page *page = fz_new_text_page(d->doc->ctxt, pdf_bound_page(d->doc->xref, d->page));
+    fz_matrix ctm = fz_identity;
+    fz_cookie cookie = { 0, 0, 0, 0, 0, 0 };
+    fz_text_page *page = fz_new_text_page(d->doc->ctxt);
     fz_text_sheet *sheet = fz_new_text_sheet(d->doc->ctxt);
     fz_device *device = fz_new_text_device(d->doc->ctxt, sheet, page);
-    pdf_run_page(d->doc->xref, d->page, device, ctm, &cookie);
+    pdf_run_page(d->doc->xref, d->page, device, &ctm, &cookie);
     fz_free_device(device);
     if (cookie.errors) {
         fz_free_text_page(d->doc->ctxt, page);
@@ -388,16 +388,21 @@ QList<TextBox *> Page::textBoxes() const
     QList<TextBox *> boxes;
 
     for (int i_block = 0; i_block < page->len; ++i_block) {
-        fz_text_block &block = page->blocks[i_block];
+        if (page->blocks[i_block].type != FZ_PAGE_BLOCK_TEXT)
+            continue;
+        fz_text_block &block = *page->blocks[i_block].u.text;
         for (int i_line = 0; i_line < block.len; ++i_line) {
             fz_text_line &line = block.lines[i_line];
             bool hastext = false;
-            for (int i_span = 0; i_span < line.len; ++i_span) {
-                fz_text_span &span = line.spans[i_span];
+            for (fz_text_span *s = line.first_span; s; s = s->next) {
+                fz_text_span &span = *s;
                 for (int i_char = 0; i_char < span.len; ++i_char) {
+                    fz_rect bbox;
+                    fz_text_char_bbox(&bbox, s, i_char);
                     fz_text_char &tc = span.text[i_char];
+
                     TextBox *box = new TextBox();
-                    box->d->rect = convert_fz_rect(tc.bbox).toRect();
+                    box->d->rect = convert_fz_rect(bbox).toRect();
                     box->d->text = QChar(tc.c);
                     boxes.append(box);
                     hastext = true;
