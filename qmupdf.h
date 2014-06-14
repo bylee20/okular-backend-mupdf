@@ -18,8 +18,7 @@
 class QImage;
 class QStringList;
 
-namespace QMuPDF
-{
+namespace QMuPDF {
 
 class DocumentPrivate;
 class Page;
@@ -29,103 +28,75 @@ class TextBoxPrivate;
 class Outline;
 class OutlinePrivate;
 
-class Document
-{
-    public:
-        enum PageMode
-        {
-            UseNone,
-            UseOutlines,
-            UseThumbs,
-            FullScreen,
-            UseOC,
-            UseAttachments
-        };
-
-        Document();
-        ~Document();
-
-        bool load(const QString &fileName);
-        void close();
-
-        bool isLocked() const;
-        bool unlock(const QByteArray &password);
-
-        int pageCount() const;
-        Page* page(int page) const;
-
-        QList<QByteArray> infoKeys() const;
-        QString infoKey(const QByteArray &key) const;
-
-        Outline* outline() const;
-
-        float pdfVersion() const;
-        PageMode pageMode() const;
-
-    private:
-        Q_DISABLE_COPY(Document)
-        DocumentPrivate* d;
+class Document {
+public:
+    enum PageMode {
+        UseNone,
+        UseOutlines,
+        UseThumbs,
+        FullScreen,
+        UseOC,
+        UseAttachments
+    };
+    Document();
+    ~Document();
+    bool load(const QString &fileName);
+    void close();
+    bool isLocked() const;
+    bool unlock(const QByteArray &password);
+    int pageCount() const;
+    Page* page(int page) const;
+    QList<QByteArray> infoKeys() const;
+    QString infoKey(const QByteArray &key) const;
+    Outline* outline() const;
+    float pdfVersion() const;
+    PageMode pageMode() const;
+private:
+    Q_DISABLE_COPY(Document)
+    DocumentPrivate* d;
 };
 
-class Page
-{
+class Page {
     friend class Document;
-
-    public:
-        ~Page();
-
-        int number() const;
-        QSizeF size() const;
-        qreal duration() const;
-
-        QImage render(qreal width, qreal height) const;
-
-        QList<TextBox *> textBoxes() const;
-
-    private:
-        Page();
-
-        Q_DISABLE_COPY(Page)
-        PagePrivate* d;
+public:
+    ~Page();
+    int number() const;
+    QSizeF size() const;
+    qreal duration() const;
+    QImage render(qreal width, qreal height) const;
+    QList<TextBox *> textBoxes() const;
+private:
+    Page();
+    Q_DISABLE_COPY(Page)
+    PagePrivate* d;
 };
 
-class TextBox
-{
+class TextBox {
     friend class Page;
-
-    public:
-        ~TextBox();
-
-        QRect rect() const;
-        QChar text() const;
-        bool isAtEndOfLine() const;
-
-    private:
-        TextBox();
-
-        Q_DISABLE_COPY(TextBox)
-        TextBoxPrivate* d;
+public:
+    ~TextBox();
+    QRect rect() const;
+    QChar text() const;
+    bool isAtEndOfLine() const;
+private:
+    TextBox();
+    Q_DISABLE_COPY(TextBox)
+    TextBoxPrivate* d;
 };
 
-class Outline
-{
+class Outline {
     friend class Document;
     friend class DocumentPrivate;
-
-    public:
-        ~Outline();
-
-        QString title() const;
-        bool isOpen() const;
-        QList<Outline *> children() const;
-
-    private:
-        Outline();
-
-        Q_DISABLE_COPY(Outline)
-        OutlinePrivate* d;
+public:
+    ~Outline();
+    QString title() const;
+    bool isOpen() const;
+    QList<Outline *> children() const;
+private:
+    Outline();
+    Q_DISABLE_COPY(Outline)
+    OutlinePrivate* d;
 };
-
 
 }
 

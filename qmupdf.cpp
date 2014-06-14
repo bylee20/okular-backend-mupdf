@@ -17,8 +17,7 @@
 #include <clocale>
 #include <cstring>
 
-namespace
-{
+namespace {
 
 QImage convert_fz_pixmap(fz_context *ctxt, fz_pixmap *image)
 {
@@ -60,54 +59,42 @@ DocumentPrivate::DocumentPrivate()
 
 bool DocumentPrivate::load()
 {
-    pdf_obj *obj = 0;
-    pdf_obj *root;
-
-
-    root = pdf_dict_gets(trailer(), "Root");
-    if (!root) {
+    pdf_obj *root = pdf_dict_gets(trailer(), "Root");
+    if (!root)
         return false;
-    }
 
     pageCount = fz_count_pages(mdoc);
-
-    obj = pdf_dict_gets(root, "PageMode");
+    pdf_obj *obj = pdf_dict_gets(root, "PageMode");
     if (obj && pdf_is_name(obj)) {
         const char* mode = pdf_to_name(obj);
-        if (!std::strcmp(mode, "UseNone")) {
+        if (!std::strcmp(mode, "UseNone"))
             pageMode = Document::UseNone;
-        } else if (!std::strcmp(mode, "UseOutlines")) {
+        else if (!std::strcmp(mode, "UseOutlines"))
             pageMode = Document::UseOutlines;
-        } else if (!std::strcmp(mode, "UseThumbs")) {
+        else if (!std::strcmp(mode, "UseThumbs"))
             pageMode = Document::UseThumbs;
-        } else if (!std::strcmp(mode, "FullScreen")) {
+        else if (!std::strcmp(mode, "FullScreen"))
             pageMode = Document::FullScreen;
-        } else if (!std::strcmp(mode, "UseOC")) {
+        else if (!std::strcmp(mode, "UseOC"))
             pageMode = Document::UseOC;
-        } else if (!std::strcmp(mode, "UseAttachments")) {
+        else if (!std::strcmp(mode, "UseAttachments"))
             pageMode = Document::UseAttachments;
-        }
     }
-
     return true;
 }
 
 void DocumentPrivate::loadInfoDict()
 {
-    if (info) {
-        return;
-    }
-
-    info = pdf_dict_gets(trailer(), "Info");
+    if (!info)
+        info = pdf_dict_gets(trailer(), "Info");
 }
 
 void DocumentPrivate::convertOutline(fz_outline *out, Outline *item)
 {
     for (; out; out = out->next) {
         Outline *child = new Outline();
-        if (out->title) {
+        if (out->title)
             child->d->title = QString::fromUtf8(out->title);
-        }
         item->d->children.append(child);
         convertOutline(out->down, child);
     }
@@ -140,9 +127,7 @@ Document::Document()
 Document::~Document()
 {
     close();
-
     fz_free_context(d->ctxt);
-
     delete d;
 }
 
@@ -150,24 +135,20 @@ bool Document::load(const QString &fileName)
 {
     QByteArray fileData = QFile::encodeName(fileName);
     d->stream = fz_open_file(d->ctxt, fileData.constData());
-    if (!d->stream) {
+    if (!d->stream)
         return false;
-    }
     char *oldlocale = std::setlocale(LC_NUMERIC, "C");
     d->mdoc = fz_open_document_with_stream(d->ctxt, "pdf", d->stream);
-    if (oldlocale) {
+    if (oldlocale)
         std::setlocale(LC_NUMERIC, oldlocale);
-    }
-    if (!d->mdoc) {
+    if (!d->mdoc)
         return false;
-    }
 
     d->locked = fz_needs_password(d->mdoc);
 
     if (!d->locked) {
-        if (!d->load()) {
+        if (!d->load())
             return false;
-        }
     }
 
     return true;
@@ -175,9 +156,8 @@ bool Document::load(const QString &fileName)
 
 void Document::close()
 {
-    if (!d->mdoc) {
+    if (!d->mdoc)
         return;
-    }
 
     fz_close_document(d->mdoc);
     d->mdoc = 0;
@@ -196,19 +176,16 @@ bool Document::isLocked() const
 
 bool Document::unlock(const QByteArray &password)
 {
-    if (!d->locked) {
+    if (!d->locked)
         return false;
-    }
 
     QByteArray a = password;
-    if (!fz_authenticate_password(d->mdoc, a.data())) {
+    if (!fz_authenticate_password(d->mdoc, a.data()))
         return false;
-    }
 
     d->locked = false;
-    if (!d->load()) {
+    if (!d->load())
         return false;
-    }
 
     return true;
 }
@@ -220,14 +197,12 @@ int Document::pageCount() const
 
 Page* Document::page(int pageno) const
 {
-    if (!d->mdoc || pageno < 0 || pageno >= d->pageCount) {
+    if (!d->mdoc || pageno < 0 || pageno >= d->pageCount)
         return 0;
-    }
 
     fz_page *page = fz_load_page(d->mdoc, pageno);
-    if (!page) {
+    if (!page)
         return 0;
-    }
 
     Page *p = new Page();
     p->d->pageNum = pageno;
@@ -239,37 +214,32 @@ Page* Document::page(int pageno) const
 QList<QByteArray> Document::infoKeys() const
 {
     QList<QByteArray> keys;
-    if (!d->mdoc) {
+    if (!d->mdoc)
         return keys;
-    }
 
     d->loadInfoDict();
 
-    if (!d->info) {
+    if (!d->info)
         return keys;
-    }
 
     const int dictSize = pdf_dict_len(d->info);
     for (int i = 0; i < dictSize; ++i) {
         pdf_obj *obj = pdf_dict_get_key(d->info, i);
-        if (pdf_is_name(obj)) {
+        if (pdf_is_name(obj))
             keys.append(QByteArray(pdf_to_name(obj)));
-        }
     }
     return keys;
 }
 
 QString Document::infoKey(const QByteArray &key) const
 {
-    if (!d->mdoc) {
+    if (!d->mdoc)
         return QString();
-    }
 
     d->loadInfoDict();
 
-    if (!d->info) {
+    if (!d->info)
         return QString();
-    }
 
     pdf_obj *obj = pdf_dict_gets(d->info, key.constData());
     if (obj) {
@@ -287,9 +257,8 @@ QString Document::infoKey(const QByteArray &key) const
 Outline* Document::outline() const
 {
     fz_outline *out = fz_load_outline(d->mdoc);
-    if (!out) {
+    if (!out)
         return 0;
-    }
 
     Outline *item = new Outline;
     d->convertOutline(out, item);
@@ -304,9 +273,8 @@ float Document::pdfVersion() const
     char buf[64];
     if (d->mdoc && fz_meta(d->mdoc, FZ_META_FORMAT_INFO, buf, sizeof(buf)) == FZ_META_OK) {
         int major, minor;
-        if (sscanf(buf, "PDF %d.%d", &major, &minor) == 2) {
+        if (sscanf(buf, "PDF %d.%d", &major, &minor) == 2)
             return float(major + minor / 10.0);
-        }
     }
     return 0.0f;
 }
@@ -325,7 +293,6 @@ Page::Page()
 Page::~Page()
 {
     fz_free_page(d->doc->mdoc, d->page);
-
     delete d;
 }
 
@@ -337,7 +304,8 @@ int Page::number() const
 QSizeF Page::size() const
 {
     fz_rect rect;
-    return convert_fz_rect(*fz_bound_page(d->doc->mdoc, d->page, &rect)).size();
+    fz_bound_page(d->doc->mdoc, d->page, &rect);
+    return QSizeF(rect.x1 - rect.x0, rect.y1 - rect.y0);
 }
 
 qreal Page::duration() const
@@ -351,8 +319,8 @@ QImage Page::render(qreal width, qreal height) const
 {
     const QSizeF s = size();
 
-    fz_matrix ctm, tmp;
-    fz_concat(&ctm, &fz_identity, fz_scale(&tmp, width / s.width(), height / s.height()));
+    fz_matrix ctm;
+    fz_scale(&ctm, width / s.width(), height / s.height());
 
     fz_cookie cookie = { 0, 0, 0, 0, 0, 0 };
     fz_colorspace *csp = fz_device_rgb(d->doc->ctxt);
@@ -363,23 +331,19 @@ QImage Page::render(qreal width, qreal height) const
     fz_free_device(device);
 
     QImage img;
-    if (!cookie.errors) {
+    if (!cookie.errors)
         img = convert_fz_pixmap(d->doc->ctxt, image);
-    }
-
     fz_drop_pixmap(d->doc->ctxt, image);
-
     return img;
 }
 
 QList<TextBox *> Page::textBoxes() const
 {
-    fz_matrix ctm = fz_identity;
     fz_cookie cookie = { 0, 0, 0, 0, 0, 0 };
     fz_text_page *page = fz_new_text_page(d->doc->ctxt);
     fz_text_sheet *sheet = fz_new_text_sheet(d->doc->ctxt);
     fz_device *device = fz_new_text_device(d->doc->ctxt, sheet, page);
-    fz_run_page(d->doc->mdoc, d->page, device, &ctm, &cookie);
+    fz_run_page(d->doc->mdoc, d->page, device, &fz_identity, &cookie);
     fz_free_device(device);
     if (cookie.errors) {
         fz_free_text_page(d->doc->ctxt, page);
@@ -410,9 +374,8 @@ QList<TextBox *> Page::textBoxes() const
                     hastext = true;
                 }
             }
-            if (hastext) {
+            if (hastext)
                 boxes.last()->d->atEOL = true;
-            }
         }
     }
 
@@ -456,7 +419,6 @@ Outline::Outline()
 Outline::~Outline()
 {
     qDeleteAll(d->children);
-
     delete d;
 }
 

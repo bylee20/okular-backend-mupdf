@@ -15,34 +15,25 @@
 
 #include "qmupdf.h"
 
-class MuPDFGenerator : public Okular::Generator
-{
+class MuPDFGenerator : public Okular::Generator {
     Q_OBJECT
-
-    public:
-        MuPDFGenerator(QObject* parent, const QVariantList &args);
-        virtual ~MuPDFGenerator();
-
-        bool loadDocument(const QString &fileName, QVector<Okular::Page *> &pagesVector);
-
-        const Okular::DocumentInfo* generateDocumentInfo();
-        const Okular::DocumentSynopsis * generateDocumentSynopsis();
-
-        QVariant metaData(const QString &key, const QVariant &option) const;
-
-    protected:
-        bool doCloseDocument();
-        QImage image(Okular::PixmapRequest *page);
-        Okular::TextPage* textPage(Okular::Page *page);
-
-    private:
-        bool init(QVector<Okular::Page *> &pagesVector, const QString &walletKey);
-        void loadPages(QVector<Okular::Page *> &pagesVector);
-
-        QMuPDF::Document m_pdfdoc;
-
-        Okular::DocumentInfo *m_docInfo;
-        Okular::DocumentSynopsis *m_docSyn;
+public:
+    MuPDFGenerator(QObject *parent, const QVariantList &args);
+    virtual ~MuPDFGenerator();
+    bool loadDocument(const QString &fileName, QVector<Okular::Page*> &pages);
+    const Okular::DocumentInfo *generateDocumentInfo();
+    const Okular::DocumentSynopsis *generateDocumentSynopsis();
+    QVariant metaData(const QString &key, const QVariant &option) const;
+protected:
+    bool doCloseDocument();
+    QImage image(Okular::PixmapRequest *page);
+    Okular::TextPage* textPage(Okular::Page *page);
+private:
+    bool init(QVector<Okular::Page*> &pages, const QString &walletKey);
+    void loadPages(QVector<Okular::Page*> &pages);
+    QMuPDF::Document m_pdfdoc;
+    Okular::DocumentInfo *m_docInfo;
+    Okular::DocumentSynopsis *m_docSyn;
 };
 
 #endif

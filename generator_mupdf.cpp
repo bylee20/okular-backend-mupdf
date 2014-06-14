@@ -24,11 +24,12 @@
 
 static const int MuPDFDebug = 4716;
 
-static Okular::TextPage* buildTextPage(const QList<QMuPDF::TextBox *> &boxes, qreal width, qreal height)
+static Okular::TextPage *buildTextPage(const QList<QMuPDF::TextBox*> &boxes,
+                                       qreal width, qreal height)
 {
     Okular::TextPage *ktp = new Okular::TextPage();
-
-    Q_FOREACH (QMuPDF::TextBox *box, boxes) {
+    for (int i = 0; i < boxes.size(); ++i) {
+        QMuPDF::TextBox *box = boxes.at(i);
         const QChar c = box->text();
         const QRectF charBBox = box->rect();
         QString text(c);
@@ -39,36 +40,37 @@ static Okular::TextPage* buildTextPage(const QList<QMuPDF::TextBox *> &boxes, qr
                         charBBox.left() / width, charBBox.top() / height,
                         charBBox.right() / width, charBBox.bottom() / height));
     }
-
     return ktp;
 }
 
-static void recurseCreateTOC(QDomDocument &maindoc, QMuPDF::Outline *outline, QDomNode &parentDestination)
+static void recurseCreateTOC(QDomDocument &mainDoc, QMuPDF::Outline *outline,
+                             QDomNode &parentDestination)
 {
     foreach (QMuPDF::Outline *child, outline->children()) {
-        QDomElement newel = maindoc.createElement(child->title());
+        QDomElement newel = mainDoc.createElement(child->title());
         parentDestination.appendChild(newel);
 
         if (child->isOpen()) {
             newel.setAttribute("Open", "true");
         }
 
-        recurseCreateTOC(maindoc, child, newel);
+        recurseCreateTOC(mainDoc, child, newel);
     }
 }
 
 static KAboutData createAboutData()
 {
     KAboutData aboutData(
-         "okular_mupdf",
-         "okular_mupdf",
-         ki18n("MuPDF Backend"),
-         "0.1",
-         ki18n("A PDF backend based on the MuPDF library"),
-         KAboutData::License_GPL,
-         ki18n("© 2008 Pino Toscano")
+        "okular_mupdf",
+        "okular_mupdf",
+        ki18n("MuPDF Backend"),
+        "0.1",
+        ki18n("A PDF backend based on the MuPDF library"),
+        KAboutData::License_GPL,
+        ki18n("© 2008 Pino Toscano")
     );
-    aboutData.addAuthor(ki18n("Pino Toscano"), KLocalizedString(), "pino@kde.org");
+    aboutData.addAuthor(ki18n("Pino Toscano"),
+                        KLocalizedString(), "pino@kde.org");
     return aboutData;
 }
 
@@ -87,12 +89,12 @@ MuPDFGenerator::~MuPDFGenerator()
 {
 }
 
-bool MuPDFGenerator::loadDocument(const QString &filePath, QVector<Okular::Page *> &pagesVector)
+bool MuPDFGenerator::loadDocument(const QString &filePath,
+                                  QVector<Okular::Page*> &pages)
 {
-    if (!m_pdfdoc.load(filePath)) {
+    if (!m_pdfdoc.load(filePath))
         return false;
-    }
-    return init(pagesVector, filePath.section('/', -1, -1));
+    return init(pages, filePath.section('/', -1, -1));
 }
 
 bool MuPDFGenerator::doCloseDocument()
@@ -104,11 +106,10 @@ bool MuPDFGenerator::doCloseDocument()
     m_docInfo = 0;
     delete m_docSyn;
     m_docSyn = 0;
-
     return true;
 }
 
-bool MuPDFGenerator::init(QVector<Okular::Page *> &pagesVector, const QString &walletKey)
+bool MuPDFGenerator::init(QVector<Okular::Page *> &pages, const QString &wkey)
 {
     // if the file didn't open correctly it might be encrypted, so ask for a pass
     bool firstInput = true;
@@ -119,7 +120,7 @@ bool MuPDFGenerator::init(QVector<Okular::Page *> &pagesVector, const QString &w
         QString password;
 
         // 1.A. try to retrieve the first password from the kde wallet system
-        if (!triedWallet && !walletKey.isNull()) {
+        if (!triedWallet && !wkey.isNull()) {
             QString walletName = KWallet::Wallet::NetworkWallet();
             WId parentwid = 0;
             if (document() && document()->widget()) {
@@ -135,7 +136,7 @@ bool MuPDFGenerator::init(QVector<Okular::Page *> &pagesVector, const QString &w
 
                 // look for the pass in that folder
                 QString retrievedPass;
-                if (!wallet->readPassword(walletKey, retrievedPass)) {
+                if (!wallet->readPassword(wkey, retrievedPass)) {
                     password = retrievedPass;
                 }
             }
@@ -145,65 +146,60 @@ bool MuPDFGenerator::init(QVector<Okular::Page *> &pagesVector, const QString &w
         // 1.B. if not retrieved, ask the password using the kde password dialog
         if (password.isNull()) {
             QString prompt;
-            if (firstInput) {
-                prompt = i18n("Please insert the password to read the document:");
-            } else {
-                prompt = i18n("Incorrect password. Try again:");
-            }
+            prompt = !firstInput ? i18n("Incorrect password. Try again:")
+                   : i18n("Please insert the password to read the document:");
             firstInput = false;
 
             // if the user presses cancel, abort opening
-            KPasswordDialog dlg(document()->widget(), wallet ? KPasswordDialog::ShowKeepPassword : KPasswordDialog::KPasswordDialogFlags());
+            KPasswordDialog dlg(document()->widget(),
+                                wallet ? KPasswordDialog::ShowKeepPassword
+                                       : KPasswordDialog::KPasswordDialogFlags());
             dlg.setCaption(i18n("Document Password"));
             dlg.setPrompt(prompt);
-            if (!dlg.exec()) {
+            if (!dlg.exec())
                 break;
-            }
             password = dlg.password();
-            if (wallet) {
+            if (wallet)
                 keep = dlg.keepPassword();
-            }
         }
 
         // 2. reopen the document using the password
         m_pdfdoc.unlock(password.toLatin1());
 
         // 3. if the password is correct and the user chose to remember it, store it to the wallet
-        if (!m_pdfdoc.isLocked() && wallet && /*safety check*/ wallet->isOpen() && keep) {
-            wallet->writePassword(walletKey, password);
-        }
+        if (!m_pdfdoc.isLocked() && wallet
+                && /*safety check*/ wallet->isOpen() && keep)
+            wallet->writePassword(wkey, password);
     }
     if (m_pdfdoc.isLocked()) {
         m_pdfdoc.close();
         return false;
     }
 
-    loadPages(pagesVector);
+    loadPages(pages);
 
     return true;
 }
 
-void MuPDFGenerator::loadPages(QVector<Okular::Page *> &pagesVector)
+void MuPDFGenerator::loadPages(QVector<Okular::Page *> &pages)
 {
-    pagesVector.resize(m_pdfdoc.pageCount());
+    pages.resize(m_pdfdoc.pageCount());
 
-    for (int i = 0; i < pagesVector.count(); ++i) {
+    for (int i = 0; i < pages.count(); ++i) {
         QMuPDF::Page *page = m_pdfdoc.page(i);
-        const QSizeF size = page->size();
-        Okular::Rotation rot = Okular::Rotation0;
-
-        Okular::Page* newpage = new Okular::Page(i, size.width(), size.height(), rot);
-        newpage->setDuration(page->duration());
-        pagesVector[i] = newpage;
+        const QSizeF s = page->size();
+        const Okular::Rotation rot = Okular::Rotation0;
+        Okular::Page* new_ = new Okular::Page(i, s.width(), s.height(), rot);
+        new_->setDuration(page->duration());
+        pages[i] = new_;
         delete page;
     }
 }
 
 const Okular::DocumentInfo* MuPDFGenerator::generateDocumentInfo()
 {
-    if (m_docInfo) {
+    if (m_docInfo)
         return m_docInfo;
-    }
 
     m_docInfo = new Okular::DocumentInfo();
     userMutex()->lock();
@@ -216,8 +212,9 @@ const Okular::DocumentInfo* MuPDFGenerator::generateDocumentInfo()
     m_docInfo->set(Okular::DocumentInfo::Creator, m_pdfdoc.infoKey("Creator"));
     m_docInfo->set(Okular::DocumentInfo::Producer, m_pdfdoc.infoKey("Producer"));
     m_docInfo->set("format", i18nc("PDF v. <version>", "PDF v. %1",
-                   m_pdfdoc.pdfVersion()), i18n("Format"));
-    m_docInfo->set(Okular::DocumentInfo::Pages, QString::number(m_pdfdoc.pageCount()));
+                                   m_pdfdoc.pdfVersion()), i18n("Format"));
+    m_docInfo->set(Okular::DocumentInfo::Pages,
+                   QString::number(m_pdfdoc.pageCount()));
 
     userMutex()->unlock();
 
@@ -226,16 +223,14 @@ const Okular::DocumentInfo* MuPDFGenerator::generateDocumentInfo()
 
 const Okular::DocumentSynopsis* MuPDFGenerator::generateDocumentSynopsis()
 {
-    if (m_docSyn) {
+    if (m_docSyn)
         return m_docSyn;
-    }
 
     userMutex()->lock();
     QMuPDF::Outline* outline = m_pdfdoc.outline();
     userMutex()->unlock();
-    if (!outline) {
-        return NULL;
-    }
+    if (!outline)
+        return 0;
 
     m_docSyn = new Okular::DocumentSynopsis();
     recurseCreateTOC(*m_docSyn, outline, *m_docSyn);
@@ -268,23 +263,21 @@ Okular::TextPage* MuPDFGenerator::textPage(Okular::Page *page)
     return tp;
 }
 
-QVariant MuPDFGenerator::metaData(const QString &key, const QVariant &option) const
+QVariant MuPDFGenerator::metaData(const QString &key,
+                                  const QVariant &option) const
 {
     Q_UNUSED(option)
-    if (key == QLatin1String("DocumentTitle"))
-    {
+    if (key == QLatin1String("DocumentTitle")) {
         userMutex()->lock();
         const QString title = m_pdfdoc.infoKey("Title");
         userMutex()->unlock();
         return title;
     } else if (key == QLatin1String("StartFullScreen")) {
-        if (m_pdfdoc.pageMode() == QMuPDF::Document::FullScreen) {
+        if (m_pdfdoc.pageMode() == QMuPDF::Document::FullScreen)
             return true;
-        }
     } else if (key == QLatin1String("OpenTOC")) {
-        if (m_pdfdoc.pageMode() == QMuPDF::Document::UseOutlines) {
+        if (m_pdfdoc.pageMode() == QMuPDF::Document::UseOutlines)
             return true;
-        }
     }
     return QVariant();
 }
