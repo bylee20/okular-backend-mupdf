@@ -265,8 +265,8 @@ const Okular::SourceReference * MuPDFGenerator::dynamicSourceReference( int
     if  ( !synctex_scanner )
         return 0;
     
-    if (synctex_edit_query(synctex_scanner, pageNr + 1, absX * 90. / 
-        dpi().width(), absY * 90. / dpi().height()) > 0)
+    if (synctex_edit_query(synctex_scanner, pageNr + 1, absX * 96. / 
+        dpi().width(), absY * 96. / dpi().height()) > 0)
     {
         synctex_node_t node;
         while ((node = synctex_next_result( synctex_scanner) ))
@@ -347,9 +347,9 @@ void MuPDFGenerator::fillViewportFromSourceReference (Okular::DocumentViewport
             
             // TeX small points ...
             double px = (synctex_node_visible_h( node ) * dpi().width()) / 
-            72.27;
+            96;
             double py = (synctex_node_visible_v( node ) * dpi().height()) / 
-            72.27;
+            96;
             viewport.rePos.normalizedX = px / 
             document()->page(viewport.pageNumber)->width();
             viewport.rePos.normalizedY = ( py + 0.5 ) / 
