@@ -80,6 +80,7 @@ MuPDFGenerator::MuPDFGenerator(QObject *parent, const QVariantList &args)
     : Generator(parent, args)
     , m_docInfo(0)
     , m_docSyn(0)
+    , synctex_scanner(0)
 {
     setFeature(Threaded);
     setFeature(TextExtraction);
@@ -94,7 +95,14 @@ bool MuPDFGenerator::loadDocument(const QString &filePath,
 {
     if (!m_pdfdoc.load(filePath))
         return false;
-    return init(pages, filePath.section('/', -1, -1));
+    bool success = init(pages, filePath.section('/', -1, -1));
+    if (success)
+    {
+        // no need to check for the existence of a synctex file, no parser will 
+        // be created if none exists
+        initSynctexParser(filePath);
+    }
+    return success;
 }
 
 bool MuPDFGenerator::doCloseDocument()
@@ -106,6 +114,12 @@ bool MuPDFGenerator::doCloseDocument()
     m_docInfo = 0;
     delete m_docSyn;
     m_docSyn = 0;
+    if ( synctex_scanner )
+    {
+        synctex_scanner_free( synctex_scanner );
+        synctex_scanner = 0;
+    }
+    
     return true;
 }
 
@@ -196,6 +210,12 @@ void MuPDFGenerator::loadPages(QVector<Okular::Page *> &pages)
     }
 }
 
+void MuPDFGenerator::initSynctexParser ( const QString& filePath )
+{
+    synctex_scanner = synctex_scanner_new_with_output_file( QFile::encodeName( 
+    filePath ), 0, 1);
+}
+
 const Okular::DocumentInfo* MuPDFGenerator::generateDocumentInfo()
 {
     if (m_docInfo)
@@ -239,6 +259,37 @@ const Okular::DocumentSynopsis* MuPDFGenerator::generateDocumentSynopsis()
     return m_docSyn;
 }
 
+const Okular::SourceReference * MuPDFGenerator::dynamicSourceReference( int 
+                                pageNr, double absX, double absY )
+{
+    if  ( !synctex_scanner )
+        return 0;
+    
+    if (synctex_edit_query(synctex_scanner, pageNr + 1, absX * 72. / 
+        dpi().width(), absY * 72. / dpi().height()) > 0)
+    {
+        synctex_node_t node;
+        while ((node = synctex_next_result( synctex_scanner) ))
+        {
+            int line = synctex_node_line(node);
+            int col = synctex_node_column(node);
+            // column extraction does not seem to be implemented in synctex so 
+            // far. set the SourceReference default value.
+            if ( col == -1 )
+            {
+                col = 0;
+            }
+            const char *name = synctex_scanner_get_name( synctex_scanner, 
+            synctex_node_tag( node ) );
+            
+            Okular::SourceReference * sourceRef = new Okular::SourceReference( 
+            QFile::decodeName (name), line, col );
+            return sourceRef;
+        }
+    }
+    return 0;
+}
+
 QImage MuPDFGenerator::image(Okular::PixmapRequest *request)
 {
     userMutex()->lock();
@@ -247,6 +298,68 @@ QImage MuPDFGenerator::image(Okular::PixmapRequest *request)
     userMutex()->unlock();
     delete page;
     return image;
+}
+
+void MuPDFGenerator::fillViewportFromSourceReference (Okular::DocumentViewport 
+& viewport, const QString & reference ) const
+{
+    if ( !synctex_scanner )
+        return;
+    
+    // The reference is of form "src:1111Filename", where "1111"
+    // points to line number 1111 in the file "Filename".
+    // Extract the file name and the numeral part from the reference string.
+    // This will fail if Filename starts with a digit.
+    QString name, lineString;
+    // Remove "src:". Presence of substring has been checked before this
+    // function is called.
+    name = reference.mid( 4 );
+    // split
+    int nameLength = name.length();
+    int i = 0;
+    for( i = 0; i < nameLength; ++i )
+    {
+        if ( !name[i].isDigit() ) break;
+    }
+    lineString = name.left( i );
+    name = name.mid( i );
+    // Remove spaces.
+    name = name.trimmed();
+    lineString = lineString.trimmed();
+    // Convert line to integer.
+    bool ok;
+    int line = lineString.toInt( &ok );
+    if (!ok) line = -1;
+    
+    // Use column == -1 for now.
+    if( synctex_display_query( synctex_scanner, QFile::encodeName(name), line, 
+        -1 ) > 0 )
+    {
+        synctex_node_t node;
+        // For now use the first hit. Could possibly be made smarter
+        // in case there are multiple hits.
+        while( ( node = synctex_next_result( synctex_scanner ) ) )
+        {
+            // TeX pages start at 1.
+            viewport.pageNumber = synctex_node_page( node ) - 1;
+            
+            if ( !viewport.isValid() ) return;
+            
+            // TeX small points ...
+            double px = (synctex_node_visible_h( node ) * dpi().width()) / 
+            72.27;
+            double py = (synctex_node_visible_v( node ) * dpi().height()) / 
+            72.27;
+            viewport.rePos.normalizedX = px / 
+            document()->page(viewport.pageNumber)->width();
+            viewport.rePos.normalizedY = ( py + 0.5 ) / 
+            document()->page(viewport.pageNumber)->height();
+            viewport.rePos.enabled = true;
+            viewport.rePos.pos = Okular::DocumentViewport::Center;
+
+            return;
+        }
+    }
 }
 
 Okular::TextPage* MuPDFGenerator::textPage(Okular::Page *page)
