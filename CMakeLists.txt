@@ -24,6 +24,8 @@ set(okularGenerator_mupdf_SRCS
   document.cpp
   page.cpp
   generator_mupdf.cpp
+  synctex/synctex_parser.c
+  synctex/synctex_parser_utils.c
 )
 
 kde4_add_plugin(okularGenerator_mupdf ${okularGenerator_mupdf_SRCS})
