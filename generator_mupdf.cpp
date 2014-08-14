@@ -265,8 +265,8 @@ const Okular::SourceReference * MuPDFGenerator::dynamicSourceReference( int
     if  ( !synctex_scanner )
         return 0;
     
-    if (synctex_edit_query(synctex_scanner, pageNr + 1, absX * 72. / 
-        dpi().width(), absY * 72. / dpi().height()) > 0)
+    if (synctex_edit_query(synctex_scanner, pageNr + 1, absX * 90. / 
+        dpi().width(), absY * 90. / dpi().height()) > 0)
     {
         synctex_node_t node;
         while ((node = synctex_next_result( synctex_scanner) ))
@@ -380,7 +380,21 @@ QVariant MuPDFGenerator::metaData(const QString &key,
                                   const QVariant &option) const
 {
     Q_UNUSED(option)
-    if (key == QLatin1String("DocumentTitle")) {
+    if ( key == "NamedViewport" && !option.toString().isEmpty() )
+    {
+        Okular::DocumentViewport viewport;
+        QString optionString = option.toString();
+        
+        // if option starts with "src:" assume that we are handling a
+        // source reference
+        if ( optionString.startsWith( "src:", Qt::CaseInsensitive ) )
+        {
+            fillViewportFromSourceReference( viewport, optionString );
+        }
+        if ( viewport.pageNumber >= 0 )
+            return viewport.toString();
+    }
+    else if (key == QLatin1String("DocumentTitle")) {
         userMutex()->lock();
         const QString title = m_pdfdoc.infoKey("Title");
         userMutex()->unlock();
