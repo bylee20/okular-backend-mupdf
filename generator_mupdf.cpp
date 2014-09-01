@@ -106,6 +106,8 @@ Okular::Document::OpenResult MuPDFGenerator::loadDocumentWithPassword(
     }
     Q_ASSERT(!m_pdfdoc.isLocked());
     loadPages(pages);
+    initSynctexParser(fileName);
+    
     return Okular::Document::OpenSuccess;
 }
 #else
