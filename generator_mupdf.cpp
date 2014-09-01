@@ -125,12 +125,6 @@ bool MuPDFGenerator::loadDocument(const QString &filePath,
     }
     return success;
 }
-
-    if ( synctex_scanner )
-    {
-        synctex_scanner_free( synctex_scanner );
-        synctex_scanner = 0;
-    }
     
 bool MuPDFGenerator::init(QVector<Okular::Page *> &pages, const QString &wkey)
 {
@@ -214,6 +208,13 @@ bool MuPDFGenerator::doCloseDocument()
     m_docInfo = 0;
     delete m_docSyn;
     m_docSyn = 0;
+    
+    if ( synctex_scanner )
+    {
+        synctex_scanner_free( synctex_scanner );
+        synctex_scanner = 0;
+    }
+    
     return true;
 }
 
