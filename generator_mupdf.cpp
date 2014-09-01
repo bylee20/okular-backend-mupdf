@@ -90,6 +90,25 @@ MuPDFGenerator::~MuPDFGenerator()
 {
 }
 
+#if OKULAR_IS_VERSION(0, 20, 0)
+Okular::Document::OpenResult MuPDFGenerator::loadDocumentWithPassword(
+    const QString &fileName, QVector<Okular::Page*> &pages,
+    const QString &password)
+{
+    if (!m_pdfdoc.load(fileName))
+        return Okular::Document::OpenError;
+    if (m_pdfdoc.isLocked()) {
+        m_pdfdoc.unlock(password.toLatin1());
+        if (m_pdfdoc.isLocked()) {
+            m_pdfdoc.close();
+            return Okular::Document::OpenNeedsPassword;
+        }
+    }
+    Q_ASSERT(!m_pdfdoc.isLocked());
+    loadPages(pages);
+    return Okular::Document::OpenSuccess;
+}
+#else
 bool MuPDFGenerator::loadDocument(const QString &filePath,
                                   QVector<Okular::Page*> &pages)
 {
@@ -105,24 +124,12 @@ bool MuPDFGenerator::loadDocument(const QString &filePath,
     return success;
 }
 
-bool MuPDFGenerator::doCloseDocument()
-{
-    userMutex()->lock();
-    m_pdfdoc.close();
-    userMutex()->unlock();
-    delete m_docInfo;
-    m_docInfo = 0;
-    delete m_docSyn;
-    m_docSyn = 0;
     if ( synctex_scanner )
     {
         synctex_scanner_free( synctex_scanner );
         synctex_scanner = 0;
     }
     
-    return true;
-}
-
 bool MuPDFGenerator::init(QVector<Okular::Page *> &pages, const QString &wkey)
 {
     // if the file didn't open correctly it might be encrypted, so ask for a pass
@@ -192,6 +199,19 @@ bool MuPDFGenerator::init(QVector<Okular::Page *> &pages, const QString &wkey)
 
     loadPages(pages);
 
+    return true;
+}
+#endif
+
+bool MuPDFGenerator::doCloseDocument()
+{
+    userMutex()->lock();
+    m_pdfdoc.close();
+    userMutex()->unlock();
+    delete m_docInfo;
+    m_docInfo = 0;
+    delete m_docSyn;
+    m_docSyn = 0;
     return true;
 }
 

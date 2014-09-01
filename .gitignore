@@ -3,3 +3,4 @@
 arch/okular-backend-mupdf
 arch/*.tar.*
 
+*.txt.user*

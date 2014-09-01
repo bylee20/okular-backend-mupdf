@@ -15,6 +15,7 @@
 #include <okular/core/document.h>
 #include <okular/core/generator.h>
 #include <okular/core/sourcereference.h>
+#include <okular/core/version.h>
 #include <qfile.h>
 
 #include "document.hpp"
@@ -24,7 +25,13 @@ class MuPDFGenerator : public Okular::Generator {
 public:
     MuPDFGenerator(QObject *parent, const QVariantList &args);
     virtual ~MuPDFGenerator();
+#if OKULAR_IS_VERSION(0, 20, 0)
+    Okular::Document::OpenResult loadDocumentWithPassword(
+        const QString &fileName, QVector<Okular::Page *> &pages,
+        const QString &password);
+#else
     bool loadDocument(const QString &fileName, QVector<Okular::Page*> &pages);
+#endif
     const Okular::DocumentInfo *generateDocumentInfo();
     const Okular::DocumentSynopsis *generateDocumentSynopsis();
     QVariant metaData(const QString &key, const QVariant &option) const;
