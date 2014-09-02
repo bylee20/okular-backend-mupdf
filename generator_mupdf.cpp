@@ -105,10 +105,16 @@ Okular::Document::OpenResult MuPDFGenerator::loadDocumentWithPassword(
         }
     }
     Q_ASSERT(!m_pdfdoc.isLocked());
-    loadPages(pages);
-    initSynctexParser(fileName);
     
-    return Okular::Document::OpenSuccess;
+    if (!m_pdfdoc.isLocked())
+    {
+        loadPages(pages);
+        // no need to check for the existence of a synctex file, no parser will 
+        // be created if none exists
+        initSynctexParser(fileName);
+        return Okular::Document::OpenSuccess;
+    }
+    else return Okular::Document::OpenError;
 }
 #else
 bool MuPDFGenerator::loadDocument(const QString &filePath,
