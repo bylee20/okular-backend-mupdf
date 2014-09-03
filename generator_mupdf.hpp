@@ -10,9 +10,13 @@
 #ifndef GENERATOR_MUPDF_H
 #define GENERATOR_MUPDF_H
 
+#include "synctex/synctex_parser.h"
+
 #include <okular/core/document.h>
 #include <okular/core/generator.h>
+#include <okular/core/sourcereference.h>
 #include <okular/core/version.h>
+#include <qfile.h>
 
 #include "document.hpp"
 
@@ -35,12 +39,21 @@ protected:
     bool doCloseDocument();
     QImage image(Okular::PixmapRequest *page);
     Okular::TextPage* textPage(Okular::Page *page);
+protected slots:
+    const Okular::SourceReference * dynamicSourceReference( int pageNr, double 
+          absX, double absY );
+    
 private:
     bool init(QVector<Okular::Page*> &pages, const QString &walletKey);
     void loadPages(QVector<Okular::Page*> &pages);
+    void initSynctexParser( const QString& filePath );
+    void fillViewportFromSourceReference( Okular::DocumentViewport & viewport, 
+         const QString & reference ) const;
     QMuPDF::Document m_pdfdoc;
     Okular::DocumentInfo *m_docInfo;
     Okular::DocumentSynopsis *m_docSyn;
+    
+    synctex_scanner_t synctex_scanner;
 };
 
 #endif
