@@ -1049,7 +1049,7 @@ typedef int synctex_status_t;
 #   define SYNCTEX_FILE (scanner->file)
 
 /*  Actually, the minimum buffer size is driven by integer and float parsing.
- *  ±0.123456789e123
+ *  Â±0.123456789e123
  */
 #   define SYNCTEX_BUFFER_MIN_SIZE 16
 #   define SYNCTEX_BUFFER_SIZE 32768
@@ -1840,6 +1840,7 @@ synctex_status_t _synctex_horiz_box_setup_visible(synctex_node_t node,int h, int
 #	ifdef __DARWIN_UNIX03
 #       pragma unused(v)
 #   endif
+    (void)v;
 	int itsBtm, itsTop;
 	if (NULL == node || node->class->type != synctex_node_type_hbox) {
 		return SYNCTEX_STATUS_BAD_ARGUMENT;
@@ -3261,6 +3262,7 @@ int synctex_node_line(synctex_node_t node) {
 	return node?SYNCTEX_LINE(node):-1;
 }
 int synctex_node_column(synctex_node_t node) {
+    (void)node;
 #	ifdef __DARWIN_UNIX03
 #       pragma unused(node)
 #   endif
@@ -3290,6 +3292,7 @@ synctex_node_t synctex_sheet_content(synctex_scanner_t scanner,int page) {
 #   endif
 
 int synctex_display_query(synctex_scanner_t scanner,const char * name,int line,int column) {
+    (void)column;
 #	ifdef __DARWIN_UNIX03
 #       pragma unused(column)
 #   endif
@@ -3689,6 +3692,7 @@ int _synctex_point_h_distance(synctex_point_t hitPoint, synctex_node_t node, syn
  *  if node is at the bottom of the hit point, this distance is negative.*/
 int _synctex_point_v_distance(synctex_point_t hitPoint, synctex_node_t node,synctex_bool_t visible);
 int _synctex_point_v_distance(synctex_point_t hitPoint, synctex_node_t node,synctex_bool_t visible) {
+    (void)visible;
 #	ifdef __DARWIN_UNIX03
 #       pragma unused(visible)
 #   endif
@@ -3779,6 +3783,7 @@ synctex_bool_t _synctex_point_in_box(synctex_point_t hitPoint, synctex_node_t no
 }
 
 int _synctex_node_distance_to_point(synctex_point_t hitPoint, synctex_node_t node, synctex_bool_t visible) {
+    (void)visible;
 #	ifdef __DARWIN_UNIX03
 #       pragma unused(visible)
 #   endif
@@ -4173,8 +4178,8 @@ synctex_updater_t synctex_updater_new_with_output_file(const char * output, cons
 		_synctex_error("!  synctex_updater_new_with_file: malloc problem");
 		return NULL;
 	}
-	if (_synctex_open(output,build_directory,&synctex,&SYNCTEX_FILE,synctex_ADD_QUOTES,&io_mode)
-		&& _synctex_open(output,build_directory,&synctex,&SYNCTEX_FILE,synctex_DONT_ADD_QUOTES,&io_mode)) {
+    if (_synctex_open(output,build_directory,&synctex,(gzFile*)&SYNCTEX_FILE,synctex_ADD_QUOTES,&io_mode)
+        && _synctex_open(output,build_directory,&synctex,(gzFile*)&SYNCTEX_FILE,synctex_DONT_ADD_QUOTES,&io_mode)) {
 return_on_error:
 		free(updater);
         updater = NULL;
