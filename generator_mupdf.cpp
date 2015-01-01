@@ -230,7 +230,7 @@ void MuPDFGenerator::loadPages(QVector<Okular::Page *> &pages)
 
     for (int i = 0; i < pages.count(); ++i) {
         QMuPDF::Page *page = m_pdfdoc.page(i);
-        const QSizeF s = page->size();
+        const QSizeF s = page->size(dpi());
         const Okular::Rotation rot = Okular::Rotation0;
         Okular::Page* new_ = new Okular::Page(i, s.width(), s.height(), rot);
         new_->setDuration(page->duration());
@@ -395,8 +395,8 @@ Okular::TextPage* MuPDFGenerator::textPage(Okular::Page *page)
 {
     userMutex()->lock();
     QMuPDF::Page *mp = m_pdfdoc.page(page->number());
-    const QVector<QMuPDF::TextBox *> boxes = mp->textBoxes();
-    const QSizeF s = mp->size();
+    const QVector<QMuPDF::TextBox *> boxes = mp->textBoxes(dpi());
+    const QSizeF s = mp->size(dpi());
     userMutex()->unlock();
     delete mp;
 

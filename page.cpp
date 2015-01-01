@@ -15,9 +15,10 @@ extern "C" {
 
 namespace QMuPDF {
 
-QRectF convert_fz_rect(const fz_rect &rect)
+QRectF convert_fz_rect(const fz_rect &rect, const QSizeF &dpi)
 {
-    return QRectF(QPointF(rect.x0, rect.y0), QPointF(rect.x1, rect.y1));
+    return QRectF(QPointF(rect.x0, rect.y0)*dpi.width()/72.,
+                  QPointF(rect.x1, rect.y1)*dpi.height()/72.);
 }
 
 QImage convert_fz_pixmap(fz_context *ctx, fz_pixmap *image)
@@ -76,11 +77,13 @@ int Page::number() const
     return d->pageNum;
 }
 
-QSizeF Page::size() const
+QSizeF Page::size(const QSizeF &dpi) const
 {
     fz_rect rect;
     fz_bound_page(d->doc, d->page, &rect);
-    return QSizeF(rect.x1 - rect.x0, rect.y1 - rect.y0);
+    // MuPDF always assumes 72dpi
+    return QSizeF((rect.x1 - rect.x0)*dpi.width()/72.,
+                  (rect.y1 - rect.y0)*dpi.height()/72.);
 }
 
 qreal Page::duration() const
@@ -92,7 +95,7 @@ qreal Page::duration() const
 
 QImage Page::render(qreal width, qreal height) const
 {
-    const QSizeF s = size();
+    const QSizeF s = size(QSizeF(72, 72));
 
     fz_matrix ctm;
     fz_scale(&ctm, width / s.width(), height / s.height());
@@ -112,7 +115,7 @@ QImage Page::render(qreal width, qreal height) const
     return img;
 }
 
-QVector<TextBox *> Page::textBoxes() const
+QVector<TextBox *> Page::textBoxes(const QSizeF &dpi) const
 {
     fz_cookie cookie = { 0, 0, 0, 0, 0, 0 };
     fz_text_page *page = fz_new_text_page(d->ctx);
@@ -140,7 +143,7 @@ QVector<TextBox *> Page::textBoxes() const
                 for (int i_char = 0; i_char < span.len; ++i_char) {
                     fz_rect bbox; fz_text_char_bbox(&bbox, s, i_char);
                     const int text = span.text[i_char].c;
-                    TextBox *box = new TextBox(text, convert_fz_rect(bbox));
+                    TextBox *box = new TextBox(text, convert_fz_rect(bbox, dpi));
                     boxes.append(box);
                     hasText = true;
                 }
