@@ -18,6 +18,8 @@ extern "C" {
 
 namespace QMuPDF {
 
+QRectF convert_fz_rect(const fz_rect &rect, const QSizeF &dpi);
+
 struct Document::Data {
     Data()
         : ctx(fz_new_context(NULL, NULL, FZ_STORE_DEFAULT))
@@ -64,9 +66,7 @@ struct Document::Data {
     void convertOutline(fz_outline *out, Outline *item)
     {
         for (; out; out = out->next) {
-            Outline *child = new Outline;
-            if (out->title)
-                child->setTitle(QString::fromUtf8(out->title));
+            Outline *child = new Outline(out);
             item->appendChild(child);
             convertOutline(out->down, child);
         }
@@ -230,6 +230,41 @@ float Document::pdfVersion() const
 Document::PageMode Document::pageMode() const
 {
     return d->pageMode;
+}
+
+/******************************************************************************/
+
+Outline::Outline(const fz_outline *out)
+{
+    if (out->title)
+        m_title = QString::fromUtf8(out->title);
+    m_link = LinkDest::create(&out->dest);
+}
+
+Outline::~Outline()
+{
+    qDeleteAll(m_children);
+    delete m_link;
+}
+
+LinkDest *LinkDest::create(const fz_link_dest *dest)
+{
+    if (!dest)
+        return 0;
+    switch (dest->kind) {
+    case FZ_LINK_GOTO:
+        return new GotoDest(dest);
+    case FZ_LINK_GOTOR:
+        return new ExternalDest(dest);
+    case FZ_LINK_LAUNCH:
+        return new LaunchDest(dest);
+    case FZ_LINK_NAMED:
+        return new NamedDest(dest);
+    case FZ_LINK_URI:
+        return new UrlDest(dest);
+    default:
+        return 0;
+    }
 }
 
 }

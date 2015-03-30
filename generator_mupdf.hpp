@@ -32,7 +32,7 @@ public:
 #else
     bool loadDocument(const QString &fileName, QVector<Okular::Page*> &pages);
 #endif
-    const Okular::DocumentInfo *generateDocumentInfo();
+    Okular::DocumentInfo generateDocumentInfo(const QSet<Okular::DocumentInfo::Key> &keys) const;
     const Okular::DocumentSynopsis *generateDocumentSynopsis();
     QVariant metaData(const QString &key, const QVariant &option) const;
 protected:
@@ -50,7 +50,6 @@ private:
     void fillViewportFromSourceReference( Okular::DocumentViewport & viewport, 
          const QString & reference ) const;
     QMuPDF::Document m_pdfdoc;
-    Okular::DocumentInfo *m_docInfo;
     Okular::DocumentSynopsis *m_docSyn;
     
     synctex_scanner_t synctex_scanner;
