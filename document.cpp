@@ -36,7 +36,7 @@ struct Document::Data {
 
     pdf_document *pdf() const { return reinterpret_cast<pdf_document*>(mdoc); }
     pdf_obj *dict(const char *key) const
-        { return pdf_dict_gets(pdf_trailer(pdf()), key); }
+        { return pdf_dict_gets(ctx, pdf_trailer(ctx, pdf()), key); }
     void loadInfoDict() { if (!info) info = dict("Info"); }
     bool load()
     {
@@ -44,10 +44,10 @@ struct Document::Data {
         if (!root)
             return false;
 
-        pageCount = fz_count_pages(mdoc);
-        pdf_obj *obj = pdf_dict_gets(root, "PageMode");
-        if (obj && pdf_is_name(obj)) {
-            const char* mode = pdf_to_name(obj);
+        pageCount = fz_count_pages(ctx, mdoc);
+        pdf_obj *obj = pdf_dict_gets(ctx, root, "PageMode");
+        if (obj && pdf_is_name(ctx, obj)) {
+            const char* mode = pdf_to_name(ctx, obj);
             if (!std::strcmp(mode, "UseNone"))
                 pageMode = Document::UseNone;
             else if (!std::strcmp(mode, "UseOutlines"))
@@ -82,7 +82,7 @@ Document::Document()
 Document::~Document()
 {
     close();
-    fz_free_context(d->ctx);
+    fz_drop_context(d->ctx);
     delete d;
 }
 
@@ -99,7 +99,7 @@ bool Document::load(const QString &fileName)
     if (!d->mdoc)
         return false;
 
-    d->locked = fz_needs_password(d->mdoc);
+    d->locked = fz_needs_password(d->ctx, d->mdoc);
 
     if (!d->locked) {
         if (!d->load())
@@ -114,9 +114,9 @@ void Document::close()
     if (!d->mdoc)
         return;
 
-    fz_close_document(d->mdoc);
+    fz_drop_document(d->ctx, d->mdoc);
     d->mdoc = 0;
-    fz_close(d->stream);
+    fz_drop_stream(d->ctx, d->stream);
     d->stream = 0;
     d->pageCount = 0;
     d->info = 0;
@@ -135,7 +135,7 @@ bool Document::unlock(const QByteArray &password)
         return false;
 
     QByteArray a = password;
-    if (!fz_authenticate_password(d->mdoc, a.data()))
+    if (!fz_authenticate_password(d->ctx, d->mdoc, a.data()))
         return false;
 
     d->locked = false;
@@ -153,7 +153,7 @@ int Document::pageCount() const
 Page* Document::page(int pageno) const
 {
     if (d->mdoc && 0 <= pageno && pageno < d->pageCount)
-        return Page::make(d->mdoc, d->ctx, pageno);
+        return Page::make(d->ctx, d->mdoc, pageno);
     return 0;
 }
 
@@ -168,11 +168,11 @@ QList<QByteArray> Document::infoKeys() const
     if (!d->info)
         return keys;
 
-    const int dictSize = pdf_dict_len(d->info);
+    const int dictSize = pdf_dict_len(d->ctx, d->info);
     for (int i = 0; i < dictSize; ++i) {
-        pdf_obj *obj = pdf_dict_get_key(d->info, i);
-        if (pdf_is_name(obj))
-            keys.append(QByteArray(pdf_to_name(obj)));
+        pdf_obj *obj = pdf_dict_get_key(d->ctx, d->info, i);
+        if (pdf_is_name(d->ctx, obj))
+            keys.append(QByteArray(pdf_to_name(d->ctx, obj)));
     }
     return keys;
 }
@@ -187,10 +187,10 @@ QString Document::infoKey(const QByteArray &key) const
     if (!d->info)
         return QString();
 
-    pdf_obj *obj = pdf_dict_gets(d->info, key.constData());
+    pdf_obj *obj = pdf_dict_gets(d->ctx, d->info, key.constData());
     if (obj) {
-        obj = pdf_resolve_indirect(obj);
-        char *value = pdf_to_utf8(d->pdf(), obj);
+        obj = pdf_resolve_indirect(d->ctx, obj);
+        char *value = pdf_to_utf8(d->ctx, d->pdf(), obj);
         if (value) {
             const QString res = QString::fromUtf8(value);
             fz_free(d->ctx, value);
@@ -202,14 +202,14 @@ QString Document::infoKey(const QByteArray &key) const
 
 Outline* Document::outline() const
 {
-    fz_outline *out = fz_load_outline(d->mdoc);
+    fz_outline *out = fz_load_outline(d->ctx, d->mdoc);
     if (!out)
         return 0;
 
     Outline *item = new Outline;
     d->convertOutline(out, item);
 
-    fz_free_outline(d->ctx, out);
+    fz_drop_outline(d->ctx, out);
 
     return item;
 }
@@ -219,7 +219,7 @@ float Document::pdfVersion() const
     if (!d->mdoc)
         return 0.0f;
     char buf[64];
-    if (fz_meta(d->mdoc, FZ_META_FORMAT_INFO, buf, sizeof(buf)) == FZ_META_OK) {
+    if (fz_lookup_metadata(d->ctx, d->mdoc, FZ_META_FORMAT, buf, sizeof(buf)) != -1) {
         int major, minor;
         if (sscanf(buf, "PDF %d.%d", &major, &minor) == 2)
             return float(major + minor / 10.0);

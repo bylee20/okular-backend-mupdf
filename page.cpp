@@ -41,8 +41,8 @@ QImage convert_fz_pixmap(fz_context *ctx, fz_pixmap *image)
 struct Page::Data {
     Data(): pageNum(-1), doc(0), page(0) { }
     int pageNum;
-    fz_document *doc;
     fz_context *ctx;
+    fz_document *doc;
     fz_page *page;
 };
 
@@ -53,14 +53,14 @@ Page::Page()
 
 Page::~Page()
 {
-    fz_free_page(d->doc, d->page);
+    fz_drop_page(d->ctx, d->page);
     delete d;
 }
 
-Page *Page::make(fz_document_s *doc, fz_context_s *ctx, int num)
+Page *Page::make(fz_context_s *ctx, fz_document_s *doc, int num)
 {
     Q_ASSERT(doc && ctx);
-    fz_page *page = fz_load_page(doc, num);
+    fz_page *page = fz_load_page(ctx, doc, num);
     if (!page)
         return 0;
     Page *p = new Page();
@@ -80,7 +80,7 @@ int Page::number() const
 QSizeF Page::size(const QSizeF &dpi) const
 {
     fz_rect rect;
-    fz_bound_page(d->doc, d->page, &rect);
+    fz_bound_page(d->ctx, d->page, &rect);
     // MuPDF always assumes 72dpi
     return QSizeF((rect.x1 - rect.x0)*dpi.width()/72.,
                   (rect.y1 - rect.y0)*dpi.height()/72.);
@@ -89,7 +89,7 @@ QSizeF Page::size(const QSizeF &dpi) const
 qreal Page::duration() const
 {
     float val;
-    (void)fz_page_presentation(d->doc, d->page, &val);
+    (void)fz_page_presentation(d->ctx, d->page, &val);
     return val < 0.1 ? -1 : val;
 }
 
@@ -105,8 +105,8 @@ QImage Page::render(qreal width, qreal height) const
     fz_pixmap *image = fz_new_pixmap(d->ctx, csp, width, height);
     fz_clear_pixmap_with_value(d->ctx, image, 0xff);
     fz_device *device = fz_new_draw_device(d->ctx, image);
-    fz_run_page(d->doc, d->page, device, &ctm, &cookie);
-    fz_free_device(device);
+    fz_run_page(d->ctx, d->page, device, &ctm, &cookie);
+    fz_drop_device(d->ctx, device);
 
     QImage img;
     if (!cookie.errors)
@@ -121,11 +121,11 @@ QVector<TextBox *> Page::textBoxes(const QSizeF &dpi) const
     fz_text_page *page = fz_new_text_page(d->ctx);
     fz_text_sheet *sheet = fz_new_text_sheet(d->ctx);
     fz_device *device = fz_new_text_device(d->ctx, sheet, page);
-    fz_run_page(d->doc, d->page, device, &fz_identity, &cookie);
-    fz_free_device(device);
+    fz_run_page(d->ctx, d->page, device, &fz_identity, &cookie);
+    fz_drop_device(d->ctx, device);
     if (cookie.errors) {
-        fz_free_text_page(d->ctx, page);
-        fz_free_text_sheet(d->ctx, sheet);
+        fz_drop_text_page(d->ctx, page);
+        fz_drop_text_sheet(d->ctx, sheet);
         return QVector<TextBox *>();
     }
 
@@ -141,7 +141,7 @@ QVector<TextBox *> Page::textBoxes(const QSizeF &dpi) const
             for (fz_text_span *s = line.first_span; s; s = s->next) {
                 fz_text_span &span = *s;
                 for (int i_char = 0; i_char < span.len; ++i_char) {
-                    fz_rect bbox; fz_text_char_bbox(&bbox, s, i_char);
+                    fz_rect bbox; fz_text_char_bbox(d->ctx, &bbox, s, i_char);
                     const int text = span.text[i_char].c;
                     TextBox *box = new TextBox(text, convert_fz_rect(bbox, dpi));
                     boxes.append(box);
@@ -153,8 +153,8 @@ QVector<TextBox *> Page::textBoxes(const QSizeF &dpi) const
         }
     }
 
-    fz_free_text_page(d->ctx, page);
-    fz_free_text_sheet(d->ctx, sheet);
+    fz_drop_text_page(d->ctx, page);
+    fz_drop_text_sheet(d->ctx, sheet);
 
     return boxes;
 }

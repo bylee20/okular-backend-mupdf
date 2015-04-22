@@ -28,7 +28,7 @@ public:
     qreal duration() const;
     QImage render(qreal width, qreal height) const;
     QVector<TextBox *> textBoxes(const QSizeF &dpi) const;
-    static Page *make(fz_document_s *doc, fz_context_s *ctx, int num);
+    static Page *make(fz_context_s *ctx, fz_document_s *doc, int num);
 private:
     Page();
     Q_DISABLE_COPY(Page)
